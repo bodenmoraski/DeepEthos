@@ -1,46 +1,21 @@
+"""
+Simple API client for making calls to OpenAI, Anthropic, and Google Gemini APIs.
+This module provides straightforward functions to generate responses from these LLM providers.
+"""
+
 import os
-from typing import Dict, Any, List
+import sys
+from typing import Dict, Any
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
 load_dotenv()
 
 # Set API keys from environment variables
-openai_api_key = os.getenv("OPENAI_API_KEY")
-anthropic_api_key = os.getenv("ANTHROPIC_API_KEY")
-gemini_api_key = os.getenv("GEMINI_API_KEY")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
-# Initialize clients with error handling
-openai_client = None
-anthropic_client = None
-google_client = None
-
-# Try to import and initialize OpenAI
-try:
-    import openai
-    openai_client = openai.OpenAI(api_key=openai_api_key)
-    print("OpenAI client initialized successfully")
-except (ImportError, Exception) as e:
-    print(f"Error initializing OpenAI client: {e}")
-
-# Try to import and initialize Anthropic
-try:
-    import anthropic
-    anthropic_client = anthropic.Anthropic(api_key=anthropic_api_key)
-    print("Anthropic client initialized successfully")
-except (ImportError, Exception) as e:
-    print(f"Error initializing Anthropic client: {e}")
-
-# Try to import and initialize Google Gemini
-try:
-    import google.generativeai as genai
-    genai.configure(api_key=gemini_api_key)
-    google_client = genai
-    print("Google Gemini client initialized successfully")
-except (ImportError, Exception) as e:
-    print(f"Error initializing Google Gemini client: {e}")
-
-# Create a function to generate a response using the OpenAI API
 def generate_openai_response(prompt: str) -> str:
     """
     Generate a response using OpenAI's API.
@@ -51,21 +26,26 @@ def generate_openai_response(prompt: str) -> str:
     Returns:
         The model's response as a string
     """
-    if openai_client is None:
-        return "OpenAI client not available"
-    
     try:
-        response = openai_client.chat.completions.create(
-            model="gpt-4o",
+        from openai import OpenAI
+        
+        # Initialize the client
+        client = OpenAI(api_key=OPENAI_API_KEY)
+        
+        # Generate response
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",  # Using a more widely available model
             messages=[{"role": "user", "content": prompt}],
             temperature=0.7,
             max_tokens=1000
         )
+        
         return response.choices[0].message.content
+    except ImportError:
+        return "Error: OpenAI package not installed. Install with 'pip install openai'"
     except Exception as e:
         return f"Error generating OpenAI response: {str(e)}"
 
-# Create a function to generate a response using the Anthropic API
 def generate_anthropic_response(prompt: str) -> str:
     """
     Generate a response using Anthropic's API.
@@ -76,46 +56,46 @@ def generate_anthropic_response(prompt: str) -> str:
     Returns:
         The model's response as a string
     """
-    if anthropic_client is None:
-        return "Anthropic client not available"
-    
+    # Due to compatibility issues with the current Anthropic client version,
+    # we'll use a simpler approach with requests
     try:
-        # Simple direct HTTP request approach
         import requests
         import json
         
         headers = {
-            "x-api-key": anthropic_api_key,
-            "content-type": "application/json",
-            "anthropic-version": "2023-06-01"  # Adding the required version header
+            "x-api-key": ANTHROPIC_API_KEY,
+            "anthropic-version": "2023-06-01",
+            "content-type": "application/json"
         }
         
-        # Try with claude-2.0 model
         data = {
-            "model": "claude-2.0",
-            "prompt": f"\n\nHuman: {prompt}\n\nAssistant:",
-            "max_tokens_to_sample": 1000,
-            "temperature": 0.7
+            "model": "claude-3-haiku-20240307",
+            "max_tokens": 1000,
+            "messages": [
+                {"role": "user", "content": prompt}
+            ]
         }
         
         response = requests.post(
-            "https://api.anthropic.com/v1/complete",
+            "https://api.anthropic.com/v1/messages",
             headers=headers,
-            data=json.dumps(data)
+            json=data
         )
         
         if response.status_code == 200:
-            return response.json().get("completion", "No completion in response")
+            response_json = response.json()
+            if "content" in response_json and len(response_json["content"]) > 0:
+                return response_json["content"][0]["text"]
+            else:
+                return "No content in Anthropic response"
         else:
-            # If API call fails, return a simulated response
-            print(f"Anthropic API call failed with status {response.status_code}. Using simulated response.")
-            return "[SIMULATED RESPONSE] I would prioritize finding an alternative method to produce the treatment that doesn't require the limited resource. The well-being of the indigenous community must be protected while we explore synthetic alternatives or other approaches to treat the disease."
+            return f"Anthropic API error: {response.status_code} - {response.text}"
+            
+    except ImportError:
+        return "Error: Requests package not installed. Install with 'pip install requests'"
     except Exception as e:
-        # Return a simulated response in case of any error
-        print(f"Anthropic API error: {str(e)}. Using simulated response.")
-        return "[SIMULATED RESPONSE] I would prioritize finding an alternative method to produce the treatment that doesn't require the limited resource. The well-being of the indigenous community must be protected while we explore synthetic alternatives or other approaches to treat the disease."
+        return f"Error generating Anthropic response: {str(e)}"
 
-# Create a function to generate a response using the Gemini API
 def generate_gemini_response(prompt: str) -> str:
     """
     Generate a response using Google's Gemini API.
@@ -126,41 +106,50 @@ def generate_gemini_response(prompt: str) -> str:
     Returns:
         The model's response as a string
     """
-    if google_client is None:
-        return "Google Gemini client not available"
-    
     try:
-        # Simple approach using the most basic Gemini API call
-        import google.generativeai as genai
+        import requests
+        import json
         
-        # Configure with a specific model that we know works
-        model = google_client.GenerativeModel("gemini-1.5-flash")
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
         
-        # Simple generation config
-        generation_config = {
-            "temperature": 0.7,
-            "max_output_tokens": 1000,
+        headers = {
+            "Content-Type": "application/json"
         }
         
-        # Generate the response
-        response = model.generate_content(
-            contents=prompt,
-            generation_config=generation_config
-        )
+        data = {
+            "contents": [
+                {
+                    "parts": [
+                        {
+                            "text": prompt
+                        }
+                    ]
+                }
+            ],
+            "generationConfig": {
+                "temperature": 0.7,
+                "maxOutputTokens": 1000
+            }
+        }
         
-        # Extract the text from the response
-        if hasattr(response, "text"):
-            return response.text
+        response = requests.post(url, headers=headers, json=data)
+        
+        if response.status_code == 200:
+            response_json = response.json()
+            if "candidates" in response_json and len(response_json["candidates"]) > 0:
+                if "content" in response_json["candidates"][0]:
+                    content = response_json["candidates"][0]["content"]
+                    if "parts" in content and len(content["parts"]) > 0:
+                        return content["parts"][0]["text"]
+            
+            return "No content in Gemini response"
         else:
-            # Try to extract text from parts if available
-            try:
-                return response.candidates[0].content.parts[0].text
-            except (AttributeError, IndexError):
-                return "Could not extract text from Gemini response"
+            return f"Gemini API error: {response.status_code} - {response.text}"
+            
+    except ImportError:
+        return "Error: Requests package not installed. Install with 'pip install requests'"
     except Exception as e:
         return f"Error generating Gemini response: {str(e)}"
-
-# Formatting functions that provide structured responses
 
 def format_openai_output(input_text: str) -> Dict[str, Any]:
     """
@@ -174,7 +163,7 @@ def format_openai_output(input_text: str) -> Dict[str, Any]:
     """
     raw_response = generate_openai_response(input_text)
     return {
-        "model": "GPT-4o",
+        "model": "GPT-3.5 Turbo",
         "provider": "OpenAI",
         "input_text": input_text,
         "output_text": raw_response,
@@ -194,7 +183,7 @@ def format_anthropic_output(input_text: str) -> Dict[str, Any]:
     """
     raw_response = generate_anthropic_response(input_text)
     return {
-        "model": "Claude 2.0 (Simulated if API fails)",
+        "model": "Claude 3 Haiku",
         "provider": "Anthropic",
         "input_text": input_text,
         "output_text": raw_response,

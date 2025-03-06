@@ -1,16 +1,26 @@
+import argparse
 import prompts
 import api
 import storage
 from api import format_openai_output, format_anthropic_output, format_gemini_output
 from final_prompt import construct_prompt
-from scenarios import get_scenario
+from scenarios import get_scenario, get_scenario_names
 
-def main():
+def run_scenario(scenario_id):
+    """
+    Run a specific scenario and save the responses.
+    
+    Args:
+        scenario_id: The ID of the scenario to run
+    """
     try:
-        # Get the scenario (default to scenario 1)
-        scenario_id = 1
+        # Get the scenario
         scenario = get_scenario(scenario_id)
-        print(f"Using scenario: {scenario[:100]}...")
+        if scenario.startswith("No scenario found"):
+            print(f"Error: {scenario}")
+            return
+        
+        print(f"Using scenario {scenario_id}: {scenario[:100]}...")
         
         # Construct the prompt
         prompt = construct_prompt(scenario)
@@ -76,7 +86,37 @@ def main():
         print(f"\nTotal responses stored: {response_count}")
         
     except Exception as e:
-        print(f"An error occurred in the main function: {e}")
+        print(f"An error occurred while running the scenario: {e}")
+
+def list_scenarios():
+    """List all available scenarios."""
+    scenario_names = get_scenario_names()
+    
+    print("Available scenarios:")
+    for i, name in enumerate(scenario_names, 1):
+        print(f"{i}. {name}")
+
+def main():
+    parser = argparse.ArgumentParser(description="Run AI models on specific ethical scenarios")
+    parser.add_argument("-r", "--run", type=int, help="Run a specific scenario by ID")
+    parser.add_argument("-l", "--list", action="store_true", help="List all available scenarios")
+    parser.add_argument("-a", "--all", action="store_true", help="Run all available scenarios")
+    
+    args = parser.parse_args()
+    
+    if args.list:
+        list_scenarios()
+    elif args.run:
+        run_scenario(args.run)
+    elif args.all:
+        scenario_names = get_scenario_names()
+        for i in range(1, len(scenario_names) + 1):
+            print(f"\n{'='*20} Running Scenario {i} {'='*20}\n")
+            run_scenario(i)
+    else:
+        # Default to listing if no arguments provided
+        list_scenarios()
+        print("\nUse --run <id> to run a specific scenario.")
 
 if __name__ == "__main__":
-    main()
+    main() 
