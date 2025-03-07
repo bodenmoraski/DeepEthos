@@ -12,6 +12,7 @@ PhilAlignment presents ethical scenarios to multiple AI models and compares thei
 - Store and view responses for comparison
 - Multiple pre-defined ethical scenarios
 - Command-line interface for running scenarios and viewing responses
+- Database management tools for clearing and backing up responses
 
 ## Requirements
 
@@ -83,12 +84,39 @@ To list responses for a specific scenario:
 python view_responses.py --scenario <scenario_id>
 ```
 
+### Managing the Database
+
+To clear all responses from the database:
+
+```bash
+python clear_database.py --all
+```
+
+To clear responses for a specific scenario:
+
+```bash
+python clear_database.py --scenario <scenario_id>
+```
+
+To clear a specific response by ID:
+
+```bash
+python clear_database.py --id <response_id>
+```
+
+To create a backup before clearing:
+
+```bash
+python clear_database.py --backup --all
+```
+
 ## File Structure
 
 - `api.py`: Functions for interacting with AI model APIs
 - `main.py`: Main script for running the default scenario
 - `run_scenario.py`: Script for running specific scenarios
 - `view_responses.py`: Script for viewing stored responses
+- `clear_database.py`: Script for clearing and backing up the database
 - `storage.py`: Functions for storing and retrieving responses
 - `scenarios.py`: Definitions of ethical scenarios
 - `final_prompt.py`: Functions for constructing prompts
