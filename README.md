@@ -11,6 +11,7 @@ PhilAlignment presents ethical scenarios to multiple AI models and compares thei
 - Run ethical scenarios through multiple AI models (OpenAI, Anthropic, and Google Gemini)
 - Store and view responses for comparison
 - Multiple pre-defined ethical scenarios
+- User-friendly console interface for easy interaction
 - Command-line interface for running scenarios and viewing responses
 - Database management tools for clearing and backing up responses
 
@@ -38,7 +39,28 @@ GEMINI_API_KEY=your_gemini_api_key
 
 ## Usage
 
-### Running a Scenario
+### Interactive Console (Recommended)
+
+The easiest way to use PhilAlignment is through the interactive console:
+
+```bash
+python philalignment.py
+```
+
+This will start an interactive console where you can:
+- List available scenarios
+- Run scenarios with all AI models
+- View and manage responses
+- Test API connections
+- Create database backups
+
+Type `help` in the console to see all available commands.
+
+### Command-line Scripts
+
+Alternatively, you can use the individual command-line scripts:
+
+#### Running a Scenario
 
 To run the default scenario (scenario 1):
 
@@ -64,7 +86,7 @@ To run all scenarios:
 python run_scenario.py --all
 ```
 
-### Viewing Responses
+#### Viewing Responses
 
 To list all stored responses:
 
@@ -84,7 +106,7 @@ To list responses for a specific scenario:
 python view_responses.py --scenario <scenario_id>
 ```
 
-### Managing the Database
+#### Managing the Database
 
 To clear all responses from the database:
 
@@ -112,6 +134,7 @@ python clear_database.py --backup --all
 
 ## File Structure
 
+- `philalignment.py`: Interactive console interface for the system
 - `api.py`: Functions for interacting with AI model APIs
 - `main.py`: Main script for running the default scenario
 - `run_scenario.py`: Script for running specific scenarios
