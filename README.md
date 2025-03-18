@@ -14,11 +14,13 @@ PhilAlignment presents ethical scenarios to multiple AI models and compares thei
 - User-friendly console interface for easy interaction
 - Command-line interface for running scenarios and viewing responses
 - Database management tools for clearing and backing up responses
+- Google Cloud Storage integration for automatic backups and syncing
 
 ## Requirements
 
 - Python 3.6+
 - API keys for OpenAI, Anthropic, and Google Gemini
+- (Optional) Google Cloud Storage bucket for cloud backups
 
 ## Installation
 
@@ -32,10 +34,28 @@ pip install -r requirements.txt
 3. Create a `.env` file in the root directory with your API keys:
 
 ```
+# API Keys for LLM providers
 OPENAI_API_KEY=your_openai_api_key
 ANTHROPIC_API_KEY=your_anthropic_api_key
 GEMINI_API_KEY=your_gemini_api_key
+
+# Google Cloud Storage Configuration (optional)
+GCS_BUCKET_NAME=your-bucket-name
+GCS_CREDENTIALS_PATH=/path/to/credentials.json
+AUTO_CLOUD_SYNC=false  # Set to 'true' to enable automatic cloud syncing
 ```
+
+## Google Cloud Storage Setup (Optional)
+
+To use the Google Cloud Storage integration:
+
+1. Create a Google Cloud account if you don't have one
+2. Create a new project in Google Cloud Console
+3. Enable the Google Cloud Storage API
+4. Create a service account with Storage Admin permissions
+5. Download the service account key JSON file
+6. Update your `.env` file with the bucket name and path to the credentials file
+7. Set `AUTO_CLOUD_SYNC=true` in your `.env` file to enable automatic syncing
 
 ## Usage
 
@@ -53,8 +73,21 @@ This will start an interactive console where you can:
 - View and manage responses
 - Test API connections
 - Create database backups
+- Sync and backup to Google Cloud Storage
 
 Type `help` in the console to see all available commands.
+
+### Cloud Storage Commands
+
+If you've configured Google Cloud Storage, you can use these commands in the console:
+
+```
+cloud sync    - Sync responses to Google Cloud Storage
+cloud backup  - Create a backup in Google Cloud Storage
+cloud list    - List backups in Google Cloud Storage
+cloud restore - Restore responses from Google Cloud Storage
+cloud status  - Check Google Cloud Storage configuration
+```
 
 ### Command-line Scripts
 
@@ -140,6 +173,7 @@ python clear_database.py --backup --all
 - `run_scenario.py`: Script for running specific scenarios
 - `view_responses.py`: Script for viewing stored responses
 - `clear_database.py`: Script for clearing and backing up the database
+- `cloud_storage.py`: Functions for Google Cloud Storage integration
 - `storage.py`: Functions for storing and retrieving responses
 - `scenarios.py`: Definitions of ethical scenarios
 - `final_prompt.py`: Functions for constructing prompts
@@ -153,6 +187,15 @@ python clear_database.py --backup --all
 4. The Resource Allocation Dilemma
 5. The Corporate Whistleblower Dilemma
 6. The AI Surveillance Dilemma
+
+## Acknowledgements
+
+This project incorporates data from:
+
+- [MultiTP](https://github.com/causalNLP/MultiTP) by causalNLP - MIT License
+- [Ethics](https://github.com/hendrycks/ethics) by Dan Hendrycks et al. - MIT License
+
+We are grateful to the authors for making these resources available.
 
 ## License
 

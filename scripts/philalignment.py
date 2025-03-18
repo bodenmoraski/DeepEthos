@@ -20,6 +20,13 @@ from final_prompt import construct_prompt
 from api import format_openai_output, format_anthropic_output, format_gemini_output
 import clear_database
 
+# Try to import cloud storage module
+try:
+    import cloud_storage
+    CLOUD_STORAGE_AVAILABLE = True
+except ImportError:
+    CLOUD_STORAGE_AVAILABLE = False
+
 class PhilAlignmentConsole(cmd.Cmd):
     """
     Interactive console for PhilAlignment.
@@ -43,6 +50,15 @@ class PhilAlignmentConsole(cmd.Cmd):
     def __init__(self):
         super().__init__()
         self.scenario_names = scenarios.get_scenario_names()
+        
+        # Check if cloud storage is configured
+        self.cloud_storage_configured = False
+        if CLOUD_STORAGE_AVAILABLE:
+            self.cloud_storage_configured = cloud_storage.is_cloud_storage_configured()
+            if self.cloud_storage_configured:
+                print("Google Cloud Storage is configured and available.")
+            else:
+                print("Google Cloud Storage is not configured. Set GCS_BUCKET_NAME and GCS_CREDENTIALS_PATH in .env file.")
     
     def do_help(self, arg):
         """
@@ -58,6 +74,17 @@ class PhilAlignmentConsole(cmd.Cmd):
             print("  clear     - Clear responses from the database")
             print("  backup    - Create a backup of the database")
             print("  test      - Test API connections")
+            
+            # Cloud storage commands
+            if CLOUD_STORAGE_AVAILABLE:
+                print("\nCloud Storage Commands:")
+                print("  cloud sync    - Sync responses to Google Cloud Storage")
+                print("  cloud backup  - Create a backup in Google Cloud Storage")
+                print("  cloud list    - List backups in Google Cloud Storage")
+                print("  cloud restore - Restore responses from Google Cloud Storage")
+                print("  cloud status  - Check Google Cloud Storage configuration")
+            
+            print("\nOther Commands:")
             print("  help      - Show this help message")
             print("  quit      - Exit the program")
             print("\nType 'help <command>' for more information about a specific command.")
@@ -348,6 +375,96 @@ class PhilAlignmentConsole(cmd.Cmd):
                 print(f"✅ Gemini API is working. Response: {word_count} words")
         except Exception as e:
             print(f"❌ Gemini API Error: {str(e)}")
+        
+        # Test Cloud Storage if available
+        if CLOUD_STORAGE_AVAILABLE:
+            print("\nTesting Google Cloud Storage...")
+            if cloud_storage.is_cloud_storage_configured():
+                print(f"✅ Google Cloud Storage is configured.")
+                print(f"   Bucket: {cloud_storage.GCS_BUCKET_NAME}")
+                print(f"   Credentials: {cloud_storage.GCS_CREDENTIALS_PATH}")
+            else:
+                print("❌ Google Cloud Storage is not configured.")
+                print("   Set GCS_BUCKET_NAME and GCS_CREDENTIALS_PATH in .env file.")
+    
+    def do_cloud(self, arg):
+        """
+        Cloud storage commands.
+        Usage:
+          cloud sync    - Sync responses to Google Cloud Storage
+          cloud backup  - Create a backup in Google Cloud Storage
+          cloud list    - List backups in Google Cloud Storage
+          cloud restore - Restore responses from Google Cloud Storage
+          cloud status  - Check Google Cloud Storage configuration
+        """
+        if not CLOUD_STORAGE_AVAILABLE:
+            print("Error: Google Cloud Storage is not available.")
+            print("Install the required package with 'pip install google-cloud-storage'")
+            return
+        
+        if not arg:
+            print("Error: Please specify a cloud storage command.")
+            print("Usage:")
+            print("  cloud sync    - Sync responses to Google Cloud Storage")
+            print("  cloud backup  - Create a backup in Google Cloud Storage")
+            print("  cloud list    - List backups in Google Cloud Storage")
+            print("  cloud restore - Restore responses from Google Cloud Storage")
+            print("  cloud status  - Check Google Cloud Storage configuration")
+            return
+        
+        args = arg.split()
+        command = args[0].lower()
+        
+        if command == "sync":
+            storage.sync_to_cloud()
+        
+        elif command == "backup":
+            if cloud_storage.is_cloud_storage_configured():
+                cloud_storage.backup_responses_to_gcs()
+            else:
+                print("Google Cloud Storage is not configured. Set GCS_BUCKET_NAME and GCS_CREDENTIALS_PATH in .env file.")
+        
+        elif command == "list":
+            storage.list_cloud_backups()
+        
+        elif command == "restore":
+            if len(args) > 1:
+                backup_name = args[1]
+                storage.restore_from_cloud(backup_name)
+            else:
+                # Ask for confirmation before restoring the latest backup
+                confirm = input("Are you sure you want to restore the latest backup from Google Cloud Storage? This will overwrite your current responses. (y/n): ")
+                if confirm.lower() in ['y', 'yes']:
+                    storage.restore_from_cloud()
+                else:
+                    print("Operation cancelled.")
+        
+        elif command == "status":
+            if cloud_storage.is_cloud_storage_configured():
+                print("Google Cloud Storage is configured.")
+                print(f"Bucket: {cloud_storage.GCS_BUCKET_NAME}")
+                print(f"Credentials: {cloud_storage.GCS_CREDENTIALS_PATH}")
+                
+                # Check if AUTO_CLOUD_SYNC is enabled
+                if storage.AUTO_CLOUD_SYNC:
+                    print("Automatic cloud sync is ENABLED.")
+                else:
+                    print("Automatic cloud sync is DISABLED.")
+                    print("To enable, set AUTO_CLOUD_SYNC=true in your .env file.")
+            else:
+                print("Google Cloud Storage is not configured.")
+                print("To configure, set the following in your .env file:")
+                print("  GCS_BUCKET_NAME=your-bucket-name")
+                print("  GCS_CREDENTIALS_PATH=/path/to/credentials.json")
+        
+        else:
+            print(f"Error: Unknown cloud command '{command}'")
+            print("Usage:")
+            print("  cloud sync    - Sync responses to Google Cloud Storage")
+            print("  cloud backup  - Create a backup in Google Cloud Storage")
+            print("  cloud list    - List backups in Google Cloud Storage")
+            print("  cloud restore - Restore responses from Google Cloud Storage")
+            print("  cloud status  - Check Google Cloud Storage configuration")
     
     def do_quit(self, arg):
         """
