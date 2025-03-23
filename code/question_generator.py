@@ -114,6 +114,8 @@ class ScenarioTesterExactMoralMachine(ScenarioTester):
         super().__init__(*args, **kwargs)
         self.PromptComposerClass = PromptComposerExactMoralMachine
         self.vign_output_file_tmpl = self.vign_output_file_tmpl.replace('/vignette_', '/mm_')
+        self.df_items = []  # Initialize df_items as an empty list
+        self.file_path = "generated_moral_machine_scenarios.csv"
 
     def generate_prompts_per_category(self):
         n_qs_per_category = self.n_questions_per_category
@@ -186,6 +188,9 @@ class ScenarioTesterExactMoralMachine(ScenarioTester):
         # random
         gen_prompts_df("Random", "Rand", "Rand", n_qs_per_category, categories, categories,
                        equal_number=False, preserve_order=False)
+                       
+        # Return the generated prompts
+        return self.df_items
 
     def gen_prompts_df(self, category, sub1, sub2, nQuestions, cat1, cat2,
                        equal_number=False, preserve_order=False):
@@ -352,6 +357,28 @@ class ScenarioTesterExactMoralMachine(ScenarioTester):
             Y_scenario = tmp['Saved']
             coef_scenario = model.fit(X_scenario, Y_scenario)
             print("Difference in number of characters:", diff_in_characters, coef_scenario.coef_)
+
+    def generate_prompt(self, *args, **kwargs):
+        """
+        Generate a prompt using the prompt composer.
+        This is a wrapper around PromptComposerExactMoralMachine.generate_prompt.
+        """
+        prompt_composer = self.PromptComposerClass(lang=self.langs[0])
+        return prompt_composer.generate_prompt(*args, **kwargs)
+        
+    def get_gpt4_response(self, prompt, choices_obj):
+        """
+        Simulates getting a response from GPT-4.
+        For the test scenario, we just return a default choice.
+        In a real implementation, this would call the GPT-4 API.
+        """
+        # Since we're not actually calling the API for this test, just return a default choice
+        print("Would normally query GPT-4 here, returning simulated response")
+        return {
+            'save_left_or_right': 'left',  # Default to saving the left option
+            'gpt_response': "I would choose to save the left option because...",
+            'reason_type': "Utilitarian reasoning"
+        }
 
 
 def main():

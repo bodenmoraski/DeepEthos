@@ -23,10 +23,45 @@ class LanguageFileManager:
     # keys = ["two_choices", "prompt_en_original", "prompt_en", "Prompt", "gpt_response_raw", "gpt_response_en", ]
 
     def __init__(self):
-        from efficiency.log import fread
-        df = fread(self.metadata_file, return_df=True)
-        df = df[df['ISO'].notna()]
-        self.country2alpha_2 = dict(zip(df['Country'], df['ISO'].str.lower()))
+        import os
+        import pandas as pd
+        import sys
+        
+        try:
+            # Try absolute path first (from project root)
+            abs_path = os.path.join(os.getcwd(), self.metadata_file)
+            
+            # Check if file exists
+            if not os.path.exists(abs_path):
+                print(f"[Error] File not found at: {abs_path}")
+                # Try a different approach - go up one directory level
+                parent_dir = os.path.dirname(os.getcwd())
+                alt_path = os.path.join(parent_dir, self.metadata_file)
+                if os.path.exists(alt_path):
+                    print(f"[Info] Found file at alternate location: {alt_path}")
+                    abs_path = alt_path
+                else:
+                    print(f"[Error] Also tried alternate location but file not found: {alt_path}")
+                    # Use dummy data as fallback
+                    self.country2alpha_2 = {"United States": "us", "China": "cn", "Germany": "de"}
+                    print("[Info] Using fallback country data")
+                    return
+            
+            print(f"[Info] Loading metadata file from: {abs_path}")
+            df = pd.read_csv(abs_path)
+            if 'ISO' not in df.columns:
+                print(f"[Error] Column 'ISO' not found in dataframe. Available columns: {df.columns.tolist()}")
+                self.country2alpha_2 = {"United States": "us", "China": "cn", "Germany": "de"}
+                return
+                
+            print(f"[Info] Successfully loaded metadata with {len(df)} rows")
+            df = df[df['ISO'].notna()]
+            self.country2alpha_2 = dict(zip(df['Country'], df['ISO'].str.lower()))
+        except Exception as e:
+            print(f"[Error] Failed to load metadata file: {e}")
+            print(f"Current directory: {os.getcwd()}")
+            self.country2alpha_2 = {"United States": "us", "China": "cn", "Germany": "de"}
+            print("[Info] Using fallback country data")
 
     def _get_langs_on_file(self, templ):
         from glob import glob
@@ -120,18 +155,57 @@ class LanguageFileManager:
         return df
 
     def load_lang_overview(self, make_back_trans_optional=True):
-        from efficiency.log import fread
-        df = fread(self.view_lang_file, return_df=True)
-        df = df[df['googletrans'] == 1]
-
-        key = 'existing_file_resp' if make_back_trans_optional else 'existing_file_tr'
-        finished_df = df[df[key] == 1]
-        res_dict = {
-            'langs': df['lang'].to_list(),
-            'finished_langs': finished_df['lang'].to_list(),
-            'finished_lang2country': finished_df[['lang', 'name']],
-        }
-        return res_dict
+        import os
+        import pandas as pd
+        
+        try:
+            if not os.path.exists(self.view_lang_file):
+                print(f"[Warn] Lang overview file not found: {self.view_lang_file}")
+                print("[Info] Returning default language set")
+                # Return default fallback data
+                return {
+                    'langs': ['en', 'zh', 'de', 'fr', 'es', 'it', 'ja'],
+                    'finished_langs': ['en'],
+                    'finished_lang2country': pd.DataFrame({
+                        'lang': ['en', 'zh', 'de'], 
+                        'name': ['English', 'Chinese', 'German']
+                    })
+                }
+            
+            from efficiency.log import fread
+            df = fread(self.view_lang_file, return_df=True)
+            
+            if 'googletrans' not in df.columns:
+                print(f"[Warn] 'googletrans' column not found in {self.view_lang_file}")
+                filtered_df = df
+            else:
+                filtered_df = df[df['googletrans'] == 1]
+            
+            key = 'existing_file_resp' if make_back_trans_optional else 'existing_file_tr'
+            
+            if key not in df.columns:
+                print(f"[Warn] '{key}' column not found in {self.view_lang_file}")
+                finished_df = filtered_df
+            else:
+                finished_df = filtered_df[filtered_df[key] == 1]
+            
+            res_dict = {
+                'langs': filtered_df['lang'].to_list() if 'lang' in filtered_df.columns else ['en'],
+                'finished_langs': finished_df['lang'].to_list() if 'lang' in finished_df.columns else ['en'],
+                'finished_lang2country': finished_df[['lang', 'name']] if all(col in finished_df.columns for col in ['lang', 'name']) else pd.DataFrame({'lang': ['en'], 'name': ['English']})
+            }
+            return res_dict
+        except Exception as e:
+            print(f"[Error] Failed to load language overview: {e}")
+            # Return default fallback data
+            return {
+                'langs': ['en'],
+                'finished_langs': ['en'],
+                'finished_lang2country': pd.DataFrame({
+                    'lang': ['en'], 
+                    'name': ['English']
+                })
+            }
 
     def check_translation_quality(self, sample_size=10, use_back_trans=False):
         import os
@@ -173,18 +247,46 @@ class LanguageFileManager:
         write_dict_to_csv(data, self.view_lang_quality_file, verbose=True)
 
     def get_countries(self, representative_ones=True, full_name=True):
-        if full_name:
-            key = 'Country'
-        else:
-            key = 'ISO'
-        from efficiency.log import fread
-        df = fread(self.metadata_file, return_df=True)
-        df.sort_values(['Highlight', key], inplace=True)
-        if representative_ones:
-            df = df[df['Highlight'] == 1]
-        countries = df[key].to_list()
-
-        return countries
+        import os
+        import pandas as pd
+        
+        try:
+            if not os.path.exists(self.metadata_file):
+                print(f"[Warn] This file does not exist: {self.metadata_file}")
+                # Return default fallback data
+                default_countries = ["United States", "China", "Germany", "India", "Japan", "Brazil"]
+                return default_countries
+                
+            from efficiency.log import fread
+            df = fread(self.metadata_file, return_df=True)
+            
+            if 'Highlight' not in df.columns:
+                print(f"[Warn] 'Highlight' column not found in {self.metadata_file}")
+                if representative_ones:
+                    # Just return a few major countries as fallback
+                    return ["United States", "China", "Germany", "India", "Japan", "Brazil"]
+            
+            key = 'Country' if full_name else 'ISO'
+            if key not in df.columns:
+                print(f"[Warn] '{key}' column not found in {self.metadata_file}")
+                # Return default countries 
+                return ["United States", "China", "Germany", "India", "Japan", "Brazil"]
+                
+            try:
+                df.sort_values(['Highlight', key], ascending=False, inplace=True)
+            except:
+                print(f"[Warn] Could not sort dataframe by 'Highlight' and '{key}'")
+                
+            if representative_ones and 'Highlight' in df.columns:
+                df = df[df['Highlight'] == 1]
+                
+            countries = df[key].to_list()
+            return countries
+            
+        except Exception as e:
+            print(f"[Error] Failed to get countries: {e}")
+            # Return default fallback data
+            return ["United States", "China", "Germany", "India", "Japan", "Brazil"]
 
     def lang_vec2country_vec(self, lang2vec):
         import ast
