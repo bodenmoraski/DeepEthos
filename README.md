@@ -1,10 +1,10 @@
-# PhilAlignment
+# DeepEthos
 
-A research framework for analyzing philosophical alignment and reasoning approaches across different AI models from multiple providers (OpenAI, Anthropic, and Google Gemini).
+A research framework for analyzing ethical reasoning and philosophical alignment across different AI models from multiple providers (OpenAI, Anthropic, and Google Gemini).
 
 ## Overview
 
-PhilAlignment generates ethical scenarios and presents them to multiple AI models using various reasoning prompting strategies. It records and analyzes the responses to evaluate how different AI systems approach ethical dilemmas, what principles they prioritize, and how their reasoning processes differ depending on the prompting technique.
+DeepEthos generates ethical scenarios and presents them to multiple AI models using various reasoning prompting strategies. It records and analyzes the responses to evaluate how different AI systems approach ethical dilemmas, what principles they prioritize, and how their reasoning processes differ depending on the prompting technique.
 
 ## Features
 
