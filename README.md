@@ -1,34 +1,62 @@
 # PhilAlignment
 
-A system for comparing responses from different AI models (OpenAI, Anthropic, and Google Gemini) to ethical scenarios.
+A research framework for analyzing philosophical alignment and reasoning approaches across different AI models from multiple providers (OpenAI, Anthropic, and Google Gemini).
 
 ## Overview
 
-PhilAlignment presents ethical scenarios to multiple AI models and compares their responses. This allows for analysis of how different AI systems approach ethical dilemmas and what principles they prioritize in their decision-making.
+PhilAlignment generates ethical scenarios and presents them to multiple AI models using various reasoning prompting strategies. It records and analyzes the responses to evaluate how different AI systems approach ethical dilemmas, what principles they prioritize, and how their reasoning processes differ depending on the prompting technique.
 
 ## Features
 
-- Run ethical scenarios through multiple AI models (OpenAI, Anthropic, and Google Gemini)
-- Store and view responses for comparison
-- Multiple pre-defined ethical scenarios
-- User-friendly console interface for easy interaction
-- Command-line interface for running scenarios and viewing responses
-- Database management tools for clearing and backing up responses
-- Google Cloud Storage integration for automatic backups and syncing
+- **Multi-Provider Integration**: Test models from OpenAI (GPT series), Anthropic (Claude models), and Google (Gemini models)
+- **Comparative Reasoning Analysis**: Compare three distinct reasoning approaches:
+  - Standard prompting (no specific reasoning instructions)
+  - Chain-of-Thought (CoT) prompting (explicitly requesting step-by-step reasoning)
+  - Induced Chain-of-Thought prompting (providing examples of how to reason)
+- **Ethical Scenario Generation**: Create diverse ethical dilemmas across multiple categories (Species, Social Value, Gender, Age, Fitness, Utilitarianism)
+- **Automated Analysis & Visualization**: Quantitative comparison of:
+  - Response length and complexity
+  - Reasoning steps and ethical principles mentioned
+  - Decision patterns and distribution
+- **Simulation Mode**: Test framework functionality without making actual API calls
+- **Flexible Configuration**: Command-line parameters for customizing test runs
 
 ## Requirements
 
-- Python 3.6+
-- API keys for OpenAI, Anthropic, and Google Gemini
-- (Optional) Google Cloud Storage bucket for cloud backups
+- Python 3.7+
+- API keys for providers you wish to test:
+  - OpenAI API key for GPT models
+  - Anthropic API key for Claude models
+  - Google API key for Gemini models
 
 ## Installation
+
+### Automatic Installation (Recommended)
+
+#### On Unix/Linux/MacOS:
+```bash
+# Make the installer executable
+chmod +x install_requirements.sh
+# Run the installer
+./install_requirements.sh
+```
+
+#### On Windows:
+```bash
+install_requirements.bat
+```
+
+### Manual Installation
 
 1. Clone this repository
 2. Install the required packages:
 
 ```bash
+# Option 1: Using pip with requirements.txt
 pip install -r requirements.txt
+
+# Option 2: Using setuptools (recommended for development)
+pip install -e .
 ```
 
 3. Create a `.env` file in the root directory with your API keys:
@@ -38,159 +66,147 @@ pip install -r requirements.txt
 OPENAI_API_KEY=your_openai_api_key
 ANTHROPIC_API_KEY=your_anthropic_api_key
 GEMINI_API_KEY=your_gemini_api_key
-
-# Google Cloud Storage Configuration (optional)
-GCS_BUCKET_NAME=your-bucket-name
-GCS_CREDENTIALS_PATH=/path/to/credentials.json
-AUTO_CLOUD_SYNC=false  # Set to 'true' to enable automatic cloud syncing
 ```
-
-## Google Cloud Storage Setup (Optional)
-
-To use the Google Cloud Storage integration:
-
-1. Create a Google Cloud account if you don't have one
-2. Create a new project in Google Cloud Console
-3. Enable the Google Cloud Storage API
-4. Create a service account with Storage Admin permissions
-5. Download the service account key JSON file
-6. Update your `.env` file with the bucket name and path to the credentials file
-7. Set `AUTO_CLOUD_SYNC=true` in your `.env` file to enable automatic syncing
 
 ## Usage
 
-### Interactive Console (Recommended)
+### Generating Test Scenarios
 
-The easiest way to use PhilAlignment is through the interactive console:
-
-```bash
-python philalignment.py
-```
-
-This will start an interactive console where you can:
-- List available scenarios
-- Run scenarios with all AI models
-- View and manage responses
-- Test API connections
-- Create database backups
-- Sync and backup to Google Cloud Storage
-
-Type `help` in the console to see all available commands.
-
-### Cloud Storage Commands
-
-If you've configured Google Cloud Storage, you can use these commands in the console:
-
-```
-cloud sync    - Sync responses to Google Cloud Storage
-cloud backup  - Create a backup in Google Cloud Storage
-cloud list    - List backups in Google Cloud Storage
-cloud restore - Restore responses from Google Cloud Storage
-cloud status  - Check Google Cloud Storage configuration
-```
-
-### Command-line Scripts
-
-Alternatively, you can use the individual command-line scripts:
-
-#### Running a Scenario
-
-To run the default scenario (scenario 1):
+First, generate the ethical scenarios that will be used for testing:
 
 ```bash
-python main.py
+python code/tester.py
 ```
 
-To run a specific scenario:
+This will create a file named `generated_moral_machine_scenarios.csv` with sample ethical dilemmas.
+
+### Multi-Provider Integration
+
+The core functionality is in the `multi_provider_integration.py` script, which supports various arguments:
 
 ```bash
-python run_scenario.py --run <scenario_id>
+python code/multi_provider_integration.py [arguments]
 ```
 
-To list all available scenarios:
+#### Arguments:
+
+- `--providers`: Specify which providers to use (openai, anthropic, google)
+- `--models`: Specific models to test (if not specified, defaults are used)
+- `--reasoning`: Reasoning approaches to test (standard, cot, induced_cot)
+- `--samples`: Number of samples per category (higher = more comprehensive)
+- `--max-tokens`: Maximum tokens for response generation (500-1000 recommended)
+- `--categories`: Specific ethical categories to test
+- `--simulate`: Run in simulation mode without making actual API calls
+
+#### Examples:
+
+1. Compare OpenAI and Claude models:
+   ```bash
+   python code/multi_provider_integration.py --providers openai anthropic
+   ```
+
+2. Test specific models across providers:
+   ```bash
+   python code/multi_provider_integration.py --models gpt-4o claude-3-5-sonnet-latest gemini-2.0-flash
+   ```
+
+3. Test all providers with Chain-of-Thought reasoning:
+   ```bash
+   python code/multi_provider_integration.py --providers openai anthropic google --reasoning cot
+   ```
+
+4. Run a focused study on specific ethical categories:
+   ```bash
+   python code/multi_provider_integration.py --providers openai anthropic --categories Species SocialValue
+   ```
+
+5. Test in simulation mode (no API calls):
+   ```bash
+   python code/multi_provider_integration.py --providers openai anthropic google --simulate
+   ```
+
+### Comparing Reasoning Approaches
+
+For comparing different reasoning approaches on a set of scenarios:
 
 ```bash
-python run_scenario.py --list
+python code/compare_reasoning_approaches.py
 ```
 
-To run all scenarios:
+This will run scenarios through the three reasoning approaches and create visualizations.
 
-```bash
-python run_scenario.py --all
-```
+## Output and Results
 
-#### Viewing Responses
+After running the scripts, you'll find:
 
-To list all stored responses:
+- **Results directory (`results/`)**: JSON files containing the full responses, analyses, and metrics for each model, reasoning type, and scenario.
+- **Plots directory (`plots/`)**: Visualization of the results, including:
+  - Word count comparison across models and reasoning types
+  - Reasoning steps comparison
+  - Decision distribution for each reasoning approach
+  - Provider-specific comparison charts
 
-```bash
-python view_responses.py --list
-```
+## Supported Models
 
-To view a specific response:
+### OpenAI
+- gpt-3.5-turbo (latest version)
+- gpt-4o (latest omni model)
+- o1-mini (reasoning-optimized model)
 
-```bash
-python view_responses.py --view <response_id>
-```
+### Anthropic
+- claude-3-5-sonnet-latest
+- claude-3-5-haiku-latest
+- claude-3-7-sonnet-latest
 
-To list responses for a specific scenario:
+### Google
+- gemini-2.0-flash
+- gemini-2.0-flash-lite
+- gemini-2.0-pro
 
-```bash
-python view_responses.py --scenario <scenario_id>
-```
+## Ethical Categories Tested
 
-#### Managing the Database
+- Species (different species saved or sacrificed)
+- Social Value (social status differences)
+- Gender (gender-based differences)
+- Age (age-based differences)
+- Fitness (health/fitness differences)
+- Utilitarianism (numerical tradeoffs)
+- Random (randomly generated scenarios)
 
-To clear all responses from the database:
+## Research Workflow Example
 
-```bash
-python clear_database.py --all
-```
+1. **Generate Scenarios**:
+   ```bash
+   python code/tester.py
+   ```
 
-To clear responses for a specific scenario:
+2. **Validate Scenarios** (optional):
+   Manually review the generated_moral_machine_scenarios.csv file
 
-```bash
-python clear_database.py --scenario <scenario_id>
-```
+3. **Run Multi-Provider Tests**:
+   ```bash
+   python code/multi_provider_integration.py --providers openai anthropic --samples 5
+   ```
 
-To clear a specific response by ID:
+4. **Analyze Results**:
+   - Review JSON data in the results directory
+   - Examine plots in the plots directory
 
-```bash
-python clear_database.py --id <response_id>
-```
+5. **Run More Focused Tests**:
+   ```bash
+   python code/multi_provider_integration.py --providers openai anthropic --categories Utilitarianism Species --reasoning standard cot --samples 10
+   ```
 
-To create a backup before clearing:
+## Extending the Framework
 
-```bash
-python clear_database.py --backup --all
-```
-
-## File Structure
-
-- `philalignment.py`: Interactive console interface for the system
-- `api.py`: Functions for interacting with AI model APIs
-- `main.py`: Main script for running the default scenario
-- `run_scenario.py`: Script for running specific scenarios
-- `view_responses.py`: Script for viewing stored responses
-- `clear_database.py`: Script for clearing and backing up the database
-- `cloud_storage.py`: Functions for Google Cloud Storage integration
-- `storage.py`: Functions for storing and retrieving responses
-- `scenarios.py`: Definitions of ethical scenarios
-- `final_prompt.py`: Functions for constructing prompts
-- `test_api.py`: Script for testing API connections
-
-## Scenarios
-
-1. The Medical Breakthrough
-2. The False Confession
-3. The Autonomous Car Decision
-4. The Resource Allocation Dilemma
-5. The Corporate Whistleblower Dilemma
-6. The AI Surveillance Dilemma
+- Add new providers by extending the `setup_clients()` function
+- Add new models by updating the `MODELS` dictionary
+- Create new reasoning approaches by modifying `create_prompt_variants()`
+- Develop new analysis metrics in the `analyze_response()` function
 
 ## Acknowledgements
 
-This project incorporates data from:
+This project incorporates data and methodology from:
 
 - [MultiTP](https://github.com/causalNLP/MultiTP) by causalNLP - MIT License
 - [Ethics](https://github.com/hendrycks/ethics) by Dan Hendrycks et al. - MIT License

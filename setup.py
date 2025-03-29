@@ -1,0 +1,35 @@
+from setuptools import setup, find_packages
+
+setup(
+    name="philalignment",
+    version="0.1.0",
+    packages=find_packages(),
+    install_requires=[
+        "pandas>=1.3.0",
+        "numpy>=1.20.0",
+        "matplotlib>=3.4.0",
+        "openai>=1.0.0",
+        "anthropic>=0.8.0",
+        "google-generativeai>=0.3.0",
+        "python-dotenv>=0.19.0",
+        "tqdm>=4.62.0",
+        "argparse>=1.4.0",
+    ],
+    author="Your Name",
+    author_email="your.email@example.com",
+    description="Framework for researching philosophical alignment of AI language models",
+    keywords="AI, ethics, philosophy, language models, alignment",
+    url="https://github.com/yourusername/PhilAlignment",
+    classifiers=[
+        "Development Status :: 3 - Alpha",
+        "Intended Audience :: Science/Research",
+        "Topic :: Scientific/Engineering :: Artificial Intelligence",
+        "License :: OSI Approved :: MIT License",
+        "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
+    ],
+    python_requires=">=3.7",
+) 

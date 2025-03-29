@@ -42,6 +42,12 @@ from collections import defaultdict
 import matplotlib.pyplot as plt
 from dotenv import load_dotenv
 
+# Ensure code directory is in the Python path
+import sys, os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+
+
+
 # Try to load API keys from .env file
 load_dotenv()
 
@@ -197,29 +203,8 @@ Now, for your scenario:
         "induced_cot": induced_cot_prompt
     }
 
-def get_model_response(clients, provider, model, prompt, max_tokens=500, simulate=False):
+def get_model_response(clients, provider, model, prompt, max_tokens=500):
     """Get a response from the specified model and provider"""
-    # If in simulation mode, return a simulated response
-    if simulate:
-        reasoning_type = "standard"  # Default reasoning type
-        word_count = np.random.randint(100, 300)
-        principles = np.random.randint(1, 5)
-        steps = np.random.randint(1, 6)
-        
-        # Create a simulated response with the format identifying it as simulated
-        response = f"[SIMULATED RESPONSE - {provider}/{model}]\n\n"
-        response += f"This is a simulated response with approximately {word_count} words, "
-        response += f"{principles} ethical principles mentioned, and {steps} reasoning steps.\n\n"
-        
-        options = ["left", "right", "neither"]
-        decision = np.random.choice(options, p=[0.4, 0.4, 0.2])
-        
-        response += f"After careful consideration, I would choose to save the {decision} option because "
-        response += "this appears to be the most ethical choice based on the given scenario. "
-        response += "The ethical principles at play include value of life, fairness, and utilitarian considerations."
-        
-        return response
-    
     try:
         client = clients.get(provider)
         if not client:
@@ -461,7 +446,7 @@ def plot_results(results, output_dir="plots"):
     
     print(f"Plots saved to {output_dir} directory")
 
-def run_comparison(clients, scenarios_df, models_to_test, reasoning_types_to_test, max_tokens=500, simulate=False):
+def run_comparison(clients, scenarios_df, models_to_test, reasoning_types_to_test, max_tokens=500):
     """Run the comparison across models and reasoning types"""
     results = {}
     
@@ -469,8 +454,8 @@ def run_comparison(clients, scenarios_df, models_to_test, reasoning_types_to_tes
         provider = MODELS.get(model, {}).get("provider")
         print(f"\nTesting model: {model} (Provider: {provider})")
         
-        # Skip if provider client is not initialized and not in simulation mode
-        if provider not in clients and not simulate:
+        # Skip if provider client is not initialized
+        if provider not in clients:
             print(f"  Skipping {model}: {provider} client not initialized")
             continue
         
@@ -500,8 +485,8 @@ def run_comparison(clients, scenarios_df, models_to_test, reasoning_types_to_tes
                 
                 print(f"    Processing scenario from category: {scenario.get('phenomenon_category', 'unknown')}")
                 
-                # Get response from API or simulation
-                response = get_model_response(clients, provider, model, prompt, max_tokens, simulate=simulate)
+                # Get response from API
+                response = get_model_response(clients, provider, model, prompt, max_tokens)
                 
                 # Analyze the response
                 analysis = analyze_response(response)
@@ -512,9 +497,8 @@ def run_comparison(clients, scenarios_df, models_to_test, reasoning_types_to_tes
                 results[model][reasoning_type]["analyses"].append(analysis)
                 results[model][reasoning_type]["decisions"][analysis["decision"]] += 1
                 
-                # Add a brief delay to avoid rate limits (not needed in simulation mode)
-                if not simulate:
-                    time.sleep(1)
+                # Add a brief delay to avoid rate limits
+                time.sleep(1)
             
             # Calculate averages
             analyses = results[model][reasoning_type]["analyses"]
@@ -546,8 +530,6 @@ def main():
     parser.add_argument("--categories", nargs="+", 
                         choices=["Species", "SocialValue", "Gender", "Age", "Fitness", "Utilitarianism", "Random"],
                         help="Specific ethical categories to test (default: all categories)")
-    parser.add_argument("--simulate", action="store_true",
-                        help="Run in simulation mode without making actual API calls")
     
     args = parser.parse_args()
     
@@ -561,14 +543,10 @@ def main():
     # Filter to only the providers we requested and have clients for
     active_providers = [p for p in requested_providers if p in available_providers]
     
-    if not active_providers and not args.simulate:
+    if not active_providers:
         print("Error: No API clients could be initialized for the requested providers.")
         print("Please check your API keys and try again.")
         return
-    elif not active_providers and args.simulate:
-        print("Warning: No API clients could be initialized, but running in simulation mode.")
-        # In simulation mode, we'll pretend we have all requested providers
-        active_providers = requested_providers
     
     # Determine which models to test
     if args.models:
@@ -589,7 +567,7 @@ def main():
     # Check we have all the requested models
     valid_models = []
     for model in models_to_test:
-        if model in MODELS and (MODELS[model]["provider"] in active_providers or args.simulate):
+        if model in MODELS and MODELS[model]["provider"] in active_providers:
             valid_models.append(model)
         else:
             print(f"Warning: Model {model} is not valid or its provider is not available")
@@ -609,11 +587,9 @@ def main():
     print(f"Models: {', '.join(valid_models)}")
     print(f"Reasoning types: {', '.join(args.reasoning)}")
     print(f"Testing {args.samples} samples per category")
-    if args.simulate:
-        print("SIMULATION MODE: No actual API calls will be made")
     
     # Run the comparison
-    results = run_comparison(clients, scenarios_df, valid_models, args.reasoning, args.max_tokens, simulate=args.simulate)
+    results = run_comparison(clients, scenarios_df, valid_models, args.reasoning, args.max_tokens)
     
     # Save and plot results
     output_file = save_results(results)
