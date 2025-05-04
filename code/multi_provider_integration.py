@@ -64,9 +64,9 @@ MODELS = {
     "claude-3-7-sonnet-latest": {"provider": "anthropic", "description": "Claude 3.7 Sonnet (extended thinking)"},
     
     # Google models
-    "gemini-2.0-flash": {"provider": "google", "description": "Gemini 2.0 Flash (balanced model)"},
-    "gemini-2.0-flash-lite": {"provider": "google", "description": "Gemini 2.0 Flash-Lite (faster model)"},
-    "gemini-2.0-pro": {"provider": "google", "description": "Gemini 2.0 Pro (most powerful model)"}
+    "gemini-2.5-flash-preview-04-17": {"provider": "google", "description": "Gemini 2.5 Flash (latest version, SOTA)"},
+    "gemini-2.0-flash-lite": {"provider": "google", "description": "Gemini 2.0 Flash Lite"},
+    "gemini-1.5-flash": {"provider": "google", "description": "Gemini 1.5 Flash"}
 }
 
 REASONING_TYPES = {
@@ -78,6 +78,8 @@ REASONING_TYPES = {
 def setup_clients():
     """Set up clients for all available providers"""
     clients = {}
+    missing_packages = []
+    missing_keys = []
     
     # Setup OpenAI client if key is available
     openai_key = os.getenv("OPENAI_API_KEY")
@@ -85,13 +87,15 @@ def setup_clients():
         try:
             from openai import OpenAI
             clients["openai"] = OpenAI(api_key=openai_key)
-            print("OpenAI client initialized successfully")
+            print("✅ OpenAI client initialized successfully")
         except ImportError:
-            print("OpenAI Python package not installed. Run: pip install openai")
+            missing_packages.append("openai")
+            print("❌ OpenAI Python package not installed. Run: pip install openai")
         except Exception as e:
-            print(f"Error setting up OpenAI client: {e}")
+            print(f"❌ Error setting up OpenAI client: {str(e)}")
     else:
-        print("OPENAI_API_KEY not found in environment variables")
+        missing_keys.append("OPENAI_API_KEY")
+        print("❌ OPENAI_API_KEY not found in environment variables or .env file")
     
     # Setup Anthropic client if key is available
     anthropic_key = os.getenv("ANTHROPIC_API_KEY")
@@ -99,28 +103,46 @@ def setup_clients():
         try:
             from anthropic import Anthropic
             clients["anthropic"] = Anthropic(api_key=anthropic_key)
-            print("Anthropic client initialized successfully")
+            print("✅ Anthropic client initialized successfully")
         except ImportError:
-            print("Anthropic Python package not installed. Run: pip install anthropic")
+            missing_packages.append("anthropic")
+            print("❌ Anthropic Python package not installed. Run: pip install anthropic")
         except Exception as e:
-            print(f"Error setting up Anthropic client: {e}")
+            print(f"❌ Error setting up Anthropic client: {str(e)}")
     else:
-        print("ANTHROPIC_API_KEY not found in environment variables")
+        missing_keys.append("ANTHROPIC_API_KEY")
+        print("❌ ANTHROPIC_API_KEY not found in environment variables or .env file")
     
     # Setup Google Gemini client if key is available
     google_key = os.getenv("GEMINI_API_KEY")
     if google_key:
         try:
-            from google import genai
-            genai_client = genai.Client(api_key=google_key)
-            clients["google"] = genai_client
-            print("Google Gemini client initialized successfully")
+            import google.generativeai as genai
+            genai.configure(api_key=google_key)
+            clients["google"] = genai
+            print("✅ Google Gemini client initialized successfully")
         except ImportError:
-            print("Google Gemini Python package not installed. Run: pip install google-genai")
+            missing_packages.append("google-generativeai")
+            print("❌ Google Gemini Python package not installed. Run: pip install google-generativeai")
         except Exception as e:
-            print(f"Error setting up Google Gemini client: {e}")
+            print(f"❌ Error setting up Google Gemini client: {str(e)}")
     else:
-        print("GEMINI_API_KEY not found in environment variables")
+        missing_keys.append("GEMINI_API_KEY")
+        print("❌ GEMINI_API_KEY not found in environment variables or .env file")
+    
+    # Print summary of issues
+    if missing_packages:
+        print("\n⚠️ Missing Python packages:")
+        for package in missing_packages:
+            print(f"  - {package}")
+        print("\nTo install missing packages, run:")
+        print(f"pip install {' '.join(missing_packages)}")
+    
+    if missing_keys:
+        print("\n⚠️ Missing API keys:")
+        for key in missing_keys:
+            print(f"  - {key}")
+        print("\nPlease add these keys to your .env file or environment variables")
     
     return clients
 
@@ -198,84 +220,44 @@ Now, for your scenario:
     }
 
 def get_model_response(clients, provider, model, prompt, max_tokens=500, simulate=False):
-    """Get a response from the specified model and provider"""
-    # If in simulation mode, return a simulated response
-    if simulate:
-        reasoning_type = "standard"  # Default reasoning type
-        word_count = np.random.randint(100, 300)
-        principles = np.random.randint(1, 5)
-        steps = np.random.randint(1, 6)
-        
-        # Create a simulated response with the format identifying it as simulated
-        response = f"[SIMULATED RESPONSE - {provider}/{model}]\n\n"
-        response += f"This is a simulated response with approximately {word_count} words, "
-        response += f"{principles} ethical principles mentioned, and {steps} reasoning steps.\n\n"
-        
-        options = ["left", "right", "neither"]
-        decision = np.random.choice(options, p=[0.4, 0.4, 0.2])
-        
-        response += f"After careful consideration, I would choose to save the {decision} option because "
-        response += "this appears to be the most ethical choice based on the given scenario. "
-        response += "The ethical principles at play include value of life, fairness, and utilitarian considerations."
-        
-        return response
+    """Get response from specified model and provider"""
+    if provider not in clients:
+        return f"[ERROR] Provider {provider} not initialized"
     
     try:
-        client = clients.get(provider)
-        if not client:
-            return f"[ERROR] Provider {provider} not initialized"
-        
-        # OpenAI implementation
         if provider == "openai":
-            # Set appropriate system message based on model and task
-            system_message = "You are a helpful AI assistant tasked with reasoning through moral dilemmas."
-            
-            # Adjust parameters based on model
-            params = {
-                "model": model,
-                "messages": [
-                    {"role": "system", "content": system_message},
+            response = clients[provider].chat.completions.create(
+                model=model,
+                messages=[
+                    {"role": "system", "content": "You are an AI assistant helping to analyze ethical scenarios."},
                     {"role": "user", "content": prompt}
                 ],
-                "temperature": 0.7,
-                "max_tokens": max_tokens
-            }
+                temperature=0.7,
+                max_tokens=max_tokens
+            )
+            return response.choices[0].message.content
             
-            # Add model-specific parameters
-            if model == "o1-mini":
-                # o1-mini can benefit from a lower temperature for more focused reasoning
-                params["temperature"] = 0.5
-            
-            response = client.chat.completions.create(**params)
-            return response.choices[0].message.content.strip()
-        
-        # Anthropic Claude implementation
         elif provider == "anthropic":
-            response = client.messages.create(
+            response = clients[provider].messages.create(
                 model=model,
                 max_tokens=max_tokens,
                 temperature=0.7,
                 messages=[
-                    {
-                        "role": "user",
-                        "content": prompt
-                    }
+                    {"role": "user", "content": prompt}
                 ]
             )
             return response.content[0].text
-        
-        # Google Gemini implementation
+            
         elif provider == "google":
-            chat = client.chats.create(model=model)
-            response = chat.send_message(prompt)
+            # Updated Gemini API usage
+            model_instance = clients[provider].GenerativeModel(model)
+            response = model_instance.generate_content(prompt)
             return response.text
-        
+            
         else:
             return f"[ERROR] Unknown provider: {provider}"
             
     except Exception as e:
-        print(f"Error getting response from {provider} {model}: {e}")
-        # Return a message indicating the error
         return f"[ERROR] Failed to get response: {str(e)}"
 
 def analyze_response(response_text):
@@ -531,105 +513,82 @@ def run_comparison(clients, scenarios_df, models_to_test, reasoning_types_to_tes
     return results
 
 def main():
-    """Main function to run the multi-provider comparison"""
     parser = argparse.ArgumentParser(description="Compare philosophical alignment across multiple LLM providers")
-    parser.add_argument("--providers", nargs="+", choices=PROVIDERS.keys(), default=["openai"],
-                        help="Providers to use: openai, anthropic, google")
-    parser.add_argument("--models", nargs="+", default=[],
-                        help="Specific models to test (if not specified, will use default models for each provider)")
-    parser.add_argument("--reasoning", nargs="+", choices=REASONING_TYPES.keys(), default=list(REASONING_TYPES.keys()),
-                        help="Reasoning approaches: standard (baseline), cot (explicit reasoning request), induced_cot (reasoning with examples)")
-    parser.add_argument("--samples", type=int, default=3,
-                        help="Number of samples per category to test (higher = more comprehensive but costlier)")
+    parser.add_argument("--providers", nargs="+", choices=list(PROVIDERS.keys()),
+                      help="Providers to test (openai, anthropic, google)")
+    parser.add_argument("--models", nargs="+",
+                      help="Specific models to test (e.g., gpt-4o, claude-3-5-sonnet-latest)")
+    parser.add_argument("--reasoning", nargs="+", choices=list(REASONING_TYPES.keys()),
+                      help="Reasoning approaches to test (standard, cot, induced_cot)")
+    parser.add_argument("--samples", type=int, default=5,
+                      help="Number of scenarios to test per category")
     parser.add_argument("--max-tokens", type=int, default=500,
-                        help="Maximum tokens for response generation (500-1000 recommended)")
-    parser.add_argument("--categories", nargs="+", 
-                        choices=["Species", "SocialValue", "Gender", "Age", "Fitness", "Utilitarianism", "Random"],
-                        help="Specific ethical categories to test (default: all categories)")
-    parser.add_argument("--simulate", action="store_true",
-                        help="Run in simulation mode without making actual API calls")
+                      help="Maximum tokens for response generation")
+    parser.add_argument("--categories", nargs="+",
+                      help="Specific ethical categories to test")
     
     args = parser.parse_args()
     
-    # Initialize clients for all requested providers
+    # Validate and process arguments
+    if not args.providers:
+        print("❌ Error: No providers specified. Please specify at least one provider using --providers")
+        print("Available providers:", list(PROVIDERS.keys()))
+        return
+    
+    # Initialize clients
+    print("\n🔧 Initializing API clients...")
     clients = setup_clients()
     
-    # Determine which providers we have clients for
-    available_providers = list(clients.keys())
-    requested_providers = args.providers
+    # Check if any requested providers are available
+    available_providers = set(clients.keys())
+    requested_providers = set(args.providers)
+    unavailable_providers = requested_providers - available_providers
     
-    # Filter to only the providers we requested and have clients for
-    active_providers = [p for p in requested_providers if p in available_providers]
-    
-    if not active_providers and not args.simulate:
-        print("Error: No API clients could be initialized for the requested providers.")
-        print("Please check your API keys and try again.")
+    if unavailable_providers:
+        print(f"\n❌ Error: The following providers are not available: {', '.join(unavailable_providers)}")
+        print("Please check your API keys and package installations")
         return
-    elif not active_providers and args.simulate:
-        print("Warning: No API clients could be initialized, but running in simulation mode.")
-        # In simulation mode, we'll pretend we have all requested providers
-        active_providers = requested_providers
     
-    # Determine which models to test
+    # Validate models
     if args.models:
-        # Use specifically requested models
-        models_to_test = args.models
-    else:
-        # Use default models for each provider
-        models_to_test = []
-        for provider in active_providers:
-            # Add one model for each provider
-            if provider == "openai":
-                models_to_test.append("gpt-4o")
-            elif provider == "anthropic":
-                models_to_test.append("claude-3-5-sonnet-latest")
-            elif provider == "google":
-                models_to_test.append("gemini-2.0-flash")
-    
-    # Check we have all the requested models
-    valid_models = []
-    for model in models_to_test:
-        if model in MODELS and (MODELS[model]["provider"] in active_providers or args.simulate):
-            valid_models.append(model)
-        else:
-            print(f"Warning: Model {model} is not valid or its provider is not available")
-    
-    if not valid_models:
-        print("Error: No valid models selected for testing")
-        return
+        invalid_models = []
+        for model in args.models:
+            if model not in MODELS:
+                invalid_models.append(model)
+        
+        if invalid_models:
+            print(f"\n❌ Error: The following models are not valid: {', '.join(invalid_models)}")
+            print("\nAvailable models:")
+            for model, info in MODELS.items():
+                print(f"  - {model}: {info['description']}")
+            return
     
     # Load scenarios
+    print("\n📚 Loading scenarios...")
     scenarios_df = load_scenarios(n_samples=args.samples, categories_to_include=args.categories)
     if scenarios_df is None:
+        print("❌ Error: Failed to load scenarios. Please run tester.py first to generate scenarios.")
         return
     
-    # Provide guidance on model-reasoning pairings
-    print("\nStarting comparative analysis of reasoning approaches:")
-    print(f"Providers: {', '.join(active_providers)}")
-    print(f"Models: {', '.join(valid_models)}")
-    print(f"Reasoning types: {', '.join(args.reasoning)}")
-    print(f"Testing {args.samples} samples per category")
-    if args.simulate:
-        print("SIMULATION MODE: No actual API calls will be made")
-    
-    # Run the comparison
-    results = run_comparison(clients, scenarios_df, valid_models, args.reasoning, args.max_tokens, simulate=args.simulate)
+    # Run comparison
+    print("\n🔍 Running comparison...")
+    results = run_comparison(
+        clients=clients,
+        scenarios_df=scenarios_df,
+        models_to_test=args.models or list(MODELS.keys()),
+        reasoning_types_to_test=args.reasoning or ["standard"],
+        max_tokens=args.max_tokens
+    )
     
     # Save and plot results
-    output_file = save_results(results)
-    plot_results(results)
-    
-    print(f"\nMulti-provider analysis complete! Results saved to {output_file}")
-    print("\nYou now have quantitative data on how different reasoning approaches affect:")
-    print("1. Reasoning complexity (word count, reasoning steps)")
-    print("2. Decision patterns across different ethical scenarios")
-    print("3. Consistent differences between reasoning approaches across model providers")
-    
-    print("\nRecommended next steps:")
-    print("1. Review the visualizations in the 'plots' directory")
-    print("2. Examine the raw data in the 'results' directory for deeper insights")
-    print("3. Consider running larger sample sizes for more statistically significant results")
-    print("\nThis data can serve as a foundation for your research on philosophical alignment across different LLM architectures.")
+    if results:
+        print("\n💾 Saving results...")
+        save_results(results)
+        print("\n📊 Generating plots...")
+        plot_results(results)
+        print("\n✅ Analysis complete! Results saved in 'results/' and plots in 'plots/'")
+    else:
+        print("❌ Error: No results were generated. Please check the logs above for errors.")
 
 if __name__ == "__main__":
     main() 

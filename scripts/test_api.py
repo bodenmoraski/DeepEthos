@@ -2,7 +2,7 @@
 Simple test script to verify that our API calls are working correctly.
 """
 
-import api
+import scripts.api as api
 import sys
 
 def test_apis():

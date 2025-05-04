@@ -13,11 +13,11 @@ import textwrap
 from typing import List, Optional
 
 # Import functionality from other modules
-import api
+import scripts.api as api
 import storage
 import scenarios
 from final_prompt import construct_prompt
-from api import format_openai_output, format_anthropic_output, format_gemini_output
+from scripts.api import format_openai_output, format_anthropic_output, format_gemini_output
 import clear_database
 
 # Try to import cloud storage module

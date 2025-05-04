@@ -1,7 +1,4 @@
-"""
-Simple API client for making calls to OpenAI, Anthropic, and Google Gemini APIs.
-This module provides straightforward functions to generate responses from these LLM providers.
-"""
+
 
 import os
 import sys

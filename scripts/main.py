@@ -1,7 +1,7 @@
 import prompts
-import api
+import scripts.api as api
 import storage
-from api import format_openai_output, format_anthropic_output, format_gemini_output
+from scripts.api import format_openai_output, format_anthropic_output, format_gemini_output
 from final_prompt import construct_prompt
 from scenarios import get_scenario
 
